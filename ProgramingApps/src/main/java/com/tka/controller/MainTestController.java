@@ -1,6 +1,5 @@
 package com.tka.controller;
 
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -58,9 +57,16 @@ public class MainTestController {
 		return "startTest"; // startTest.jsp
 	}
 
+	@GetMapping("/home")
+	public String getHomePage(Model model) {
+		return "home"; // startTest.jsp
+	}
+
 	@PostMapping("/begin-test")
-	public String beginTest(@ModelAttribute("candidate") Candidate candidate, BindingResult bindingResult, Model model,
-			HttpSession session) {
+// 	public String beginTest(@ModelAttribute("candidate") Candidate candidate, BindingResult bindingResult, Model model,
+	public String beginTest(Candidate candidate, BindingResult bindingResult, Model model, HttpSession session) {
+		session.setAttribute("cid", candidate.getCid());
+		session.setAttribute("candidate", candidate);
 		Optional<Candidate> existing = candidateService.findByName(candidate.getName());
 		Candidate saved;
 		if (existing.isPresent()) {
@@ -86,15 +92,17 @@ public class MainTestController {
 		}
 		int cid = (int) idObj;
 		List<Question> questions = questionService.getAllQuestions();
-		Map<Integer, String> answersMap = new HashMap<>();
-		for (Question q : questions) {
-			String key = "q" + q.getQid();
-			String answer = formData.get(key);
-			if (answer != null)
-				answer = answer.trim();
-			answersMap.put(q.getQid(), answer);
-		}
+		// Pass formData into getAnswers()
+		Map<Integer, String> answersMap = questionService.getAnswers(questions, formData);
 		questionService.saveStudentAnswers(answersMap, cid);
+		return "home";
+	}
+
+	@PostMapping("/view-result")
+	public String viewResult(HttpSession session, Model model) {
+		int cid = (int) session.getAttribute("cid");
+		Map<Integer, String> answersMap = null;
+		List<Question> questions = questionService.getAllQuestions();
 		int score = questionService.calculateScore(answersMap);
 		int total = questions.size();
 		int percent = total == 0 ? 0 : (score * 100) / total;

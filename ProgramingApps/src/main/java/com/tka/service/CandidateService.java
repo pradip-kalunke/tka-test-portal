@@ -38,4 +38,5 @@ public class CandidateService {
 	public Candidate getById(int cid) {
 		return candidateDao.findById(cid).orElse(null);
 	}
+
 }

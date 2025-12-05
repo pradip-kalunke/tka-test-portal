@@ -1,5 +1,6 @@
 package com.tka.service;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -27,20 +28,62 @@ public class AnswerService {
 	}
 
 	public List<QuestionAnswerView> getAnswersWithQuestions(int cid) {
-		List<Question> questions = questionDao.findAll();
-		List<Answer> answers = answerDao.findByCid(cid);
-		Map<Integer, String> ansMap = answers.stream().collect(Collectors.toMap(Answer::getQid, Answer::getAnswerText));
-		return questions.stream().map(q -> new QuestionAnswerView(q.getQid(), q.getQuestionText(),
-				q.getExpectedKeywords(), ansMap.getOrDefault(q.getQid(), ""))).collect(Collectors.toList());
+
+	    List<Question> questions = questionDao.findAll();
+	    List<Answer> answers = answerDao.findByCid(cid);
+
+	    // Convert list of answers to map by qid (easy lookup)
+	    Map<Integer, Answer> ansMap = answers.stream()
+	    		.collect(Collectors.toMap(
+	    		        Answer::getQid,
+	    		        a -> a,
+	    		        (existing, duplicate) -> existing   // KEEP FIRST
+	    		));
+
+
+	    List<QuestionAnswerView> qaList = new ArrayList<>();
+
+	    for (Question q : questions) {
+
+	        Answer ans = ansMap.get(q.getQid());
+
+	        QuestionAnswerView view = new QuestionAnswerView();
+	        view.setQid(q.getQid());
+	        view.setQuestionText(q.getQuestionText());
+	        view.setExpectedKeywords(q.getExpectedKeywords());
+
+	        if (ans != null) {
+	            view.setAnswerText(ans.getAnswerText());
+	            view.setMarks(ans.getMarks());          // <-- IMPORTANT
+	        } else {
+	            view.setAnswerText("");
+	            view.setMarks(0);                       // default
+	        }
+
+	        qaList.add(view);
+	    }
+
+	    return qaList;
 	}
 
 	public void updateAnswerAndMarks(int cid, int qid, String answerText, int marks) {
-		Answer ans = answerDao.findByCidAndQid(cid, qid).orElse(new Answer());
-		ans.setCid(cid);
-		ans.setQid(qid);
-		ans.setAnswerText(answerText);
-		ans.setMarks(marks);
-		answerDao.save(ans);
+	    List<Answer> list = answerDao.findByCidAndQid(cid, qid);
+	    Answer ans = list.isEmpty() ? new Answer() : list.get(0);
+	    ans.setCid(cid);
+	    ans.setQid(qid);
+	    ans.setAnswerText(answerText);
+	    ans.setMarks(marks);
+	    answerDao.save(ans);
+	}
+
+
+	public int calculateTotalScore(int cid) {
+	    return answerDao.sumMarksByCid(cid);
+	}
+
+	public void updateCandidateResult(int cid) {
+		// TODO Auto-generated method stub
+		
 	}
 
 }

@@ -1,6 +1,7 @@
 package com.tka.service;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -74,8 +75,24 @@ public class QuestionService {
 	}
 
 	public void deleteById(int id) {
-		// TODO Auto-generated method stub
 
+	}
+
+	public Map<Integer, String> getAnswers(List<Question> questions, Map<String, String> formData) {
+
+		Map<Integer, String> answersMap = new HashMap<>();
+
+		for (Question q : questions) {
+			String key = "q" + q.getQid(); // Example: q1, q2, q3...
+			String answer = formData.get(key);
+
+			if (answer != null)
+				answer = answer.trim();
+
+			answersMap.put(q.getQid(), answer);
+		}
+
+		return answersMap;
 	}
 
 }

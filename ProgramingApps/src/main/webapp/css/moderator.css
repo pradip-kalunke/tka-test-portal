@@ -1,0 +1,50 @@
+body {
+    font-family: Arial;
+    margin: 20px;
+}
+
+h2, h3 {
+    color: #333;
+}
+
+.answer-box {
+    border: 1px solid #ccc;
+    padding: 15px;
+    margin-bottom: 12px;
+    border-radius: 6px;
+    background: #f9f9f9;
+}
+
+textarea {
+    width: 100%;
+    padding: 8px;
+}
+
+.mark-select {
+    padding: 6px;
+    margin-top: 5px;
+}
+
+.btn-save, .btn-edit {
+    padding: 10px 20px;
+    background: #007bff;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    text-decoration: none;
+}
+
+.answers-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.answers-table th, .answers-table td {
+    border: 1px solid #ccc;
+    padding: 8px;
+}
+
+.green {
+    color: green;
+    font-weight: bold;
+}

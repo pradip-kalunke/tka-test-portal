@@ -6,6 +6,15 @@ public class QuestionAnswerView {
 	private String questionText;
 	private String expectedKeywords;
 	private String answerText;
+	private int marks; // ADD THIS
+
+	public int getMarks() {
+		return marks;
+	}
+
+	public void setMarks(int marks) {
+		this.marks = marks;
+	}
 
 	public QuestionAnswerView() {
 	}

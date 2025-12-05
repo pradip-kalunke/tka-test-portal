@@ -1,7 +1,6 @@
 package com.tka.controller;
 
 import java.util.List;
-import java.util.Optional;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
@@ -29,96 +28,103 @@ import jakarta.servlet.http.HttpServletRequest;
 public class ModeratorController {
 
 	@Autowired
-	CandidateService candidateService;
+	private CandidateService candidateService;
+
 	@Autowired
-	AnswerService answerService;
+	private QuestionService questionService;
+
 	@Autowired
-	QuestionService questionService;
+	private AnswerService answerService;
+
 	@Autowired
-	ResultService resultService;
+	private ResultService resultService;
 
 	@GetMapping("/")
-	public String listCandidatesCopy(Model model) {
-		model.addAttribute("candidates", candidateService.findAll());
-		return "moderator/listCandidates"; // listCandidates.jsp
+	public String getAllCandidates(Model model) {
+		List<Candidate> candidates = candidateService.findAll();
+		model.addAttribute("candidates", candidates);
+		return "/moderator/listCandidates";
 	}
 
-	@GetMapping("/candidates")
-	public String listCandidates(Model model) {
-		model.addAttribute("candidates", candidateService.findAll());
-		return "moderator/listCandidates"; // listCandidates.jsp
-	}
-
+	// Show answers to moderator
 	@GetMapping("/view-answers/{cid}")
 	public String viewAnswers(@PathVariable int cid, Model model) {
+
 		Candidate candidate = candidateService.findById(cid).orElse(null);
+
 		List<QuestionAnswerView> qaList = answerService.getAnswersWithQuestions(cid);
+
+		int totalScore = qaList.stream().mapToInt(QuestionAnswerView::getMarks).sum();
+
 		model.addAttribute("candidate", candidate);
-		model.addAttribute("qaList", qaList); // ← FIXED: JSP expects qaList
+		model.addAttribute("qaList", qaList);
+		model.addAttribute("totalScore", totalScore);
+
 		return "moderator/viewAnswers";
 	}
 
+	// Update answers + marks page
 	@GetMapping("/update-answers/{cid}")
-	public String updateAnswersView(@PathVariable int cid, Model model) {
-		Candidate candidate = candidateService.getById(cid);
+	public String updateAnswers(@PathVariable int cid, Model model) {
+
+		Candidate candidate = candidateService.findById(cid).orElse(null);
 		List<QuestionAnswerView> answers = answerService.getAnswersWithQuestions(cid);
+
 		model.addAttribute("candidate", candidate);
 		model.addAttribute("answers", answers);
+
 		return "moderator/updateAnswers";
 	}
 
+	// Save moderator updates
 	@PostMapping("/save-updated-answers")
 	public String saveUpdatedAnswers(@RequestParam int cid, HttpServletRequest request) {
+
 		List<Question> questions = questionService.getAllQuestions();
+
 		for (Question q : questions) {
+
 			String ansKey = "ans_" + q.getQid();
 			String markKey = "mark_" + q.getQid();
+
 			String updatedAnswer = request.getParameter(ansKey);
 			String markStr = request.getParameter(markKey);
-			int marks = (markStr != null) ? Integer.parseInt(markStr) : 0;
+
+			int marks = (markStr == null || markStr.isEmpty()) ? 0 : Integer.parseInt(markStr);
+
 			answerService.updateAnswerAndMarks(cid, q.getQid(), updatedAnswer, marks);
 		}
+
+		// ⬇ Auto-update result
+		answerService.updateCandidateResult(cid);
+
 		return "redirect:/moderator/view-answers/" + cid;
 	}
 
-	// Moderator drafts/edits result (manual override)
+	// Manual draft override (optional)
 	@PostMapping("/draft-result")
-	public String draftResult(@RequestParam Integer cid, @RequestParam Integer score,
+	public String draftResult(@RequestParam Integer cid, @RequestParam(required = false) Integer score,
 			@RequestParam(required = false) String status, @RequestParam(required = false) String draftedBy,
 			RedirectAttributes ra) {
-		Optional<Result> existing = resultService.findByCid(cid);
-		Result r;
+
 		int totalQ = questionService.getAllQuestions().size();
-		if (existing.isPresent()) {
-			r = existing.get();
-		} else {
-			r = new Result();
-			r.setCid(cid);
-		}
-		r.setScore(score);
-		r.setTotalQuestions(totalQ);
+		if (score == null)
+			score = 0;
+
+		Result result = resultService.findByCid(cid).orElse(new Result());
+		result.setCid(cid);
+		result.setScore(score);
+		result.setTotalQuestions(totalQ);
+
 		int percent = totalQ == 0 ? 0 : (score * 100) / totalQ;
-		r.setPercent(percent);
-		r.setStatus(status == null ? (percent >= 40 ? "PASS" : "FAIL") : status);
-		r.setDraftedBy(draftedBy == null ? "moderator" : draftedBy);
-		resultService.saveResult(r);
+		result.setPercent(percent);
+		result.setStatus(status == null ? (percent >= 40 ? "PASS" : "FAIL") : status);
+		result.setDraftedBy(draftedBy == null ? "moderator" : draftedBy);
+
+		resultService.saveResult(result);
 
 		ra.addFlashAttribute("msg", "Result drafted/updated successfully.");
 		return "redirect:/moderator/view-answers/" + cid;
 	}
 
-	// Moderator can finalize status explicitly
-	@PostMapping("/update-status")
-	public String updateStatus(@RequestParam Integer cid, @RequestParam String status, RedirectAttributes ra) {
-		Optional<Result> res = resultService.findByCid(cid);
-		if (!res.isPresent()) {
-			ra.addFlashAttribute("error", "Result not found to update status.");
-			return "redirect:/moderator/candidates";
-		}
-		Result r = res.get();
-		r.setStatus(status);
-		resultService.saveResult(r);
-		ra.addFlashAttribute("msg", "Status updated.");
-		return "redirect:/moderator/view-answers/" + cid;
-	}
 }
